@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Superteam Thailand — Member Registry</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0f14;
+      --surface: rgba(255,255,255,0.04);
+      --surface-hover: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.09);
+      --border-focus: rgba(93,202,165,0.5);
+      --border-error: rgba(226,75,74,0.6);
+      --text: #e8e6df;
+      --text-muted: rgba(255,255,255,0.4);
+      --text-hint: rgba(255,255,255,0.2);
+      --accent: #5DCAA5;
+      --accent-bg: rgba(93,202,165,0.12);
+      --accent-border: rgba(93,202,165,0.25);
+      --accent-text: #04342C;
+      --error: #E24B4A;
+      --radius: 8px;
+      --radius-lg: 14px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: rgba(255,255,255,0.02);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .header h1 { font-size: 18px; font-weight: 500; color: #fff; }
+    .header p { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .badge {
+      background: var(--accent-bg);
+      color: var(--accent);
+      border: 0.5px solid var(--accent-border);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Layers */
+    .layer { margin-bottom: 2rem; }
+    .layer-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.22);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .layer-label::after {
+      content: '';
+      flex: 1;
+      height: 0.5px;
+      background: var(--border);
+    }
+
+    /* Fields */
+    .row { display: grid; gap: 12px; margin-bottom: 12px; }
+    .row.col2 { grid-template-columns: 1fr 1fr; }
+    .row.col1 { grid-template-columns: 1fr; }
+    @media (max-width: 520px) { .row.col2 { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .tag-critical {
+      background: var(--accent-bg);
+      color: var(--accent);
+      font-size: 9px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+    .tag-opt { color: var(--text-hint); font-size: 11px; font-style: italic; }
+
+    input[type="text"],
+    input[type="url"],
+    select,
+    textarea {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 9px 12px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--border-focus);
+      background: var(--surface-hover);
+    }
+    input::placeholder, textarea::placeholder { color: var(--text-hint); }
+    input.error, select.error, textarea.error { border-color: var(--border-error); }
+    select { cursor: pointer; }
+    select option { background: #1a1d24; }
+    textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+
+    /* Intent score */
+    .score-row { display: flex; gap: 6px; }
+    .score-btn {
+      width: 38px; height: 38px;
+      border-radius: var(--radius);
+      border: 0.5px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.12s;
+      font-family: inherit;
+    }
+    .score-btn:hover { border-color: var(--border-focus); color: var(--accent); }
+    .score-btn.active { background: var(--accent-bg); border-color: var(--border-focus); color: var(--accent); }
+    .score-btn.error-ring { border-color: var(--border-error); }
+    .score-hint { font-size: 11px; color: var(--text-hint); margin-top: 4px; }
+
+    /* Consent */
+    .consent-box {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 1.5rem;
+    }
+    .consent-box label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .consent-box input[type="checkbox"] {
+      width: 16px; height: 16px;
+      flex-shrink: 0;
+      margin-top: 1px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .consent-box a { color: var(--accent); text-decoration: none; }
+    .consent-box a:hover { text-decoration: underline; }
+    .consent-error { font-size: 11px; color: var(--error); margin-top: 6px; display: none; }
+
+    /* Curation notice */
+    .curator-notice {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 12px;
+      color: var(--text-hint);
+      line-height: 1.5;
+    }
+
+    /* Submit */
+    .submit-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 1.5rem;
+    }
+    .submit-note { font-size: 11px; color: var(--text-hint); max-width: 260px; line-height: 1.4; }
+    .submit-btn {
+      background: var(--accent);
+      color: var(--accent-text);
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 24px;
+      cursor: pointer;
+      transition: opacity 0.12s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .submit-btn:hover:not(:disabled) { opacity: 0.88; }
+    .submit-btn:active:not(:disabled) { transform: scale(0.98); }
+    .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Error banner */
+    .error-banner {
+      display: none;
+      background: rgba(226,75,74,0.08);
+      border: 0.5px solid rgba(226,75,74,0.3);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #F09595;
+      margin-top: 1rem;
+    }
+
+    /* Success */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+    .success-icon { font-size: 40px; color: var(--accent); margin-bottom: 14px; }
+    .success-screen h2 { font-size: 20px; font-weight: 500; color: #fff; margin-bottom: 8px; }
+    .success-screen p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="header">
+    <div>
+      <h1>Superteam Thailand</h1>
+      <p>Unofficial member registry · Southeast Asia builder graph</p>
+    </div>
+    <div class="badge">🇹🇭 Solana</div>
+  </div>
+
+  <form id="member-form" novalidate>
+
+    <!-- ── Identity Layer ── -->
+    <div class="layer">
+      <div class="layer-label">Identity layer</div>
+
+      <div class="row col2">
+        <div class="field">
+          <label for="full_name">Full name <span class="tag-critical">critical</span></label>
+          <input type="text" id="full_name" name="full_name" placeholder="Firstname Lastname" required />
+        </div>
+        <div class="field">
+          <label for="project_name">Project name <span class="tag-opt">optional</span></label>
+          <input type="text" id="project_name" name="project_name" placeholder="e.g. Solara Finance" />
+        </div>
+      </div>
+
+      <div class="row col2">
+        <div class="field">
+          <label for="city">City <span class="tag-critical">critical</span></label>
+          <input type="text" id="city" name="city" placeholder="e.g. Bangkok" required />
+        </div>
+        <div class="field">
+          <label for="country">Country <span class="tag-critical">critical</span></label>
+          <input type="text" id="country" name="country" placeholder="e.g. Thailand" required />
+        </div>
+      </div>
+
+      <div class="row col2">
+        <div class="field">
+          <label for="role">Role <span class="tag-critical">critical</span></label>
+          <select id="role" name="role" required>
+            <option value="" disabled selected>Select role…</option>
+            <option>Founder</option>
+            <option>Co-founder</option>
+            <option>Developer</option>
+            <option>Creator</option>
+            <option>Partner</option>
+            <option>Investor</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="twitter_or_x">Twitter / X <span class="tag-opt">optional</span></label>
+          <input type="url" id="twitter_or_x" name="twitter_or_x" placeholder="https://x.com/handle" />
+        </div>
+      </div>
+
+      <div class="row col1">
+        <div class="field">
+          <label for="linkedin">LinkedIn <span class="tag-opt">optional</span></label>
+          <input type="url" id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/…" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Build Layer ── -->
+    <div class="layer">
+      <div class="layer-label">Build layer</div>
+
+      <div class="row col1">
+        <div class="field">
+          <label for="what_building">What are you building? <span class="tag-critical">critical</span></label>
+          <textarea id="what_building" name="what_building" placeholder="One sentence, plain English — what problem and for who?" required></textarea>
+        </div>
+      </div>
+
+      <div class="row col2">
+        <div class="field">
+          <label for="category_primary">Primary category <span class="tag-critical">critical</span></label>
+          <select id="category_primary" name="category_primary" required>
+            <option value="" disabled selected>Select…</option>
+            <optgroup label="Infrastructure">
+              <option>Core infrastructure</option><option>Developer tooling</option>
+              <option>RPC / node services</option><option>Oracles</option>
+              <option>Indexing / data</option><option>Security / auditing</option>
+            </optgroup>
+            <optgroup label="DeFi">
+              <option>DEX / AMM</option><option>Lending / borrowing</option>
+              <option>Derivatives / perps</option><option>Yield / vaults</option>
+              <option>Stablecoins</option><option>Payments / remittance</option>
+              <option>Cross-chain / bridges</option>
+            </optgroup>
+            <optgroup label="Consumer">
+              <option>NFTs / digital collectibles</option><option>Gaming / GameFi</option>
+              <option>Social / SocialFi</option><option>Creator economy</option>
+              <option>Identity / reputation</option><option>Wallets / UX</option>
+            </optgroup>
+            <optgroup label="Emerging">
+              <option>AI agents</option><option>DePIN</option><option>DeSci</option>
+              <option>RWA tokenization</option><option>DAOs / governance</option>
+              <option>Prediction markets</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option>Analytics / research</option><option>Education / community</option>
+              <option>Media / content</option><option>Enterprise / B2B</option><option>Other</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="field">
+          <label for="category_secondary">Secondary category <span class="tag-opt">optional</span></label>
+          <select id="category_secondary" name="category_secondary">
+            <option value="">None</option>
+            <optgroup label="Infrastructure">
+              <option>Core infrastructure</option><option>Developer tooling</option>
+              <option>RPC / node services</option><option>Oracles</option>
+              <option>Indexing / data</option><option>Security / auditing</option>
+            </optgroup>
+            <optgroup label="DeFi">
+              <option>DEX / AMM</option><option>Lending / borrowing</option>
+              <option>Derivatives / perps</option><option>Yield / vaults</option>
+              <option>Stablecoins</option><option>Payments / remittance</option>
+              <option>Cross-chain / bridges</option>
+            </optgroup>
+            <optgroup label="Consumer">
+              <option>NFTs / digital collectibles</option><option>Gaming / GameFi</option>
+              <option>Social / SocialFi</option><option>Creator economy</option>
+              <option>Identity / reputation</option><option>Wallets / UX</option>
+            </optgroup>
+            <optgroup label="Emerging">
+              <option>AI agents</option><option>DePIN</option><option>DeSci</option>
+              <option>RWA tokenization</option><option>DAOs / governance</option>
+              <option>Prediction markets</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option>Analytics / research</option><option>Education / community</option>
+              <option>Media / content</option><option>Enterprise / B2B</option><option>Other</option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div class="row col2">
+        <div class="field">
+          <label for="chain_alignment">Chain alignment <span class="tag-critical">critical</span></label>
+          <select id="chain_alignment" name="chain_alignment" required>
+            <option value="" disabled selected>Select…</option>
+            <option>Solana Native</option>
+            <option>Multi-chain</option>
+            <option>Chain-agnostic</option>
+            <option>Exploring Solana</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="github_or_demo">GitHub or demo <span class="tag-opt">optional</span></label>
+          <input type="url" id="github_or_demo" name="github_or_demo" placeholder="https://github.com/…" />
+        </div>
+      </div>
+
+      <div class="row col1">
+        <div class="field">
+          <label for="why_solana">Why Solana? <span class="tag-opt">optional</span></label>
+          <input type="text" id="why_solana" name="why_solana" placeholder="Their words or inferred — literal grant filter text" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Stage Layer ── -->
+    <div class="layer">
+      <div class="layer-label">Stage layer</div>
+
+      <div class="row col2">
+        <div class="field">
+          <label for="stage">Stage <span class="tag-critical">critical</span></label>
+          <select id="stage" name="stage" required>
+            <option value="" disabled selected>Select…</option>
+            <option>Idea</option>
+            <option>MVP</option>
+            <option>Early traction</option>
+            <option>Scaling</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="funding_status">Funding status <span class="tag-critical">critical</span></label>
+          <select id="funding_status" name="funding_status" required>
+            <option value="" disabled selected>Select…</option>
+            <option>Bootstrapped</option>
+            <option>Raised</option>
+            <option>Raising</option>
+            <option>Pre-funding</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row col1">
+        <div class="field">
+          <label for="traction_signal">Traction signal <span class="tag-opt">optional</span></label>
+          <input type="text" id="traction_signal" name="traction_signal" placeholder="e.g. 300 waitlist, 12k GitHub stars, $2k MRR, None" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Intent + Value Layer ── -->
+    <div class="layer">
+      <div class="layer-label">Intent + value layer</div>
+
+      <div class="row col1" style="margin-bottom:14px">
+        <div class="field">
+          <label>Intent score <span class="tag-critical">critical</span></label>
+          <div class="score-row" id="score-row">
+            <button type="button" class="score-btn" data-v="1">1</button>
+            <button type="button" class="score-btn" data-v="2">2</button>
+            <button type="button" class="score-btn" data-v="3">3</button>
+            <button type="button" class="score-btn" data-v="4">4</button>
+            <button type="button" class="score-btn" data-v="5">5</button>
+          </div>
+          <div class="score-hint" id="score-hint">5 = shipping &nbsp;·&nbsp; 3 = exploring &nbsp;·&nbsp; 1 = tourist</div>
+          <input type="hidden" id="intent_score" name="intent_score" value="" />
+        </div>
+      </div>
+
+      <div class="row col2">
+        <div class="field">
+          <label for="value_flow_position">Value flow position <span class="tag-critical">critical</span></label>
+          <select id="value_flow_position" name="value_flow_position" required>
+            <option value="" disabled selected>Select…</option>
+            <option>Create</option>
+            <option>Distribute</option>
+            <option>Capture</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="current_need">Current need <span class="tag-opt">optional</span></label>
+          <select id="current_need" name="current_need">
+            <option value="">Not specified</option>
+            <option>Capital</option>
+            <option>Users</option>
+            <option>Hiring</option>
+            <option>Tech support</option>
+            <option>BD</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Curation Layer ── -->
+    <div class="layer">
+      <div class="layer-label">Curation layer</div>
+      <div class="curator-notice">
+        🔒 Tier assignment (T1/T2/T3) and curator notes are added by the Superteam Thailand team after submission. This data is never visible to submitters and is stored in a separate access-controlled table.
+      </div>
+    </div>
+
+    <!-- ── PDPA Consent ── -->
+    <div class="consent-box">
+      <label>
+        <input type="checkbox" id="pdpa_consent" name="pdpa_consent" />
+        <span>
+          I consent to Superteam Thailand collecting and storing my information for the purpose of the unofficial member registry, in accordance with the <a href="PRIVACY.md" target="_blank">Privacy Notice</a> and Thailand's Personal Data Protection Act (PDPA B.E. 2562). I understand I can request deletion at any time by contacting the team.
+        </span>
+      </label>
+      <div class="consent-error" id="consent-error">You must accept the privacy consent to submit.</div>
+    </div>
+
+    <!-- Submit -->
+    <div class="submit-row">
+      <div class="submit-note">Fields marked <span style="color:#5DCAA5;font-weight:500">critical</span> are reviewed first by Solana Foundation.</div>
+      <button type="submit" class="submit-btn" id="submit-btn">Submit application</button>
+    </div>
+
+    <div class="error-banner" id="error-banner"></div>
+
+  </form>
+
+  <!-- Success screen -->
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">✓</div>
+    <h2>Application received</h2>
+    <p>The Superteam Thailand team will review your entry.<br>Critical fields are flagged for Solana Foundation review.<br><br>
+    <span style="font-size:12px;color:rgba(255,255,255,0.2)">Your data is stored securely and never shared publicly.</span></p>
+  </div>
+</div>
+
+<script>
+  // ── Supabase init ──────────────────────────────────────────
+  // Values injected from .env at build time (Vite) or replaced
+  // manually if serving as plain HTML.
+  const SUPABASE_URL  = typeof __SUPABASE_URL__  !== 'undefined' ? __SUPABASE_URL__  : '';
+  const SUPABASE_ANON = typeof __SUPABASE_ANON__ !== 'undefined' ? __SUPABASE_ANON__ : '';
+
+  if (!SUPABASE_URL || !SUPABASE_ANON) {
+    console.error('[Superteam] Missing Supabase env vars. See .env.example');
+  }
+
+  const { createClient } = supabase;
+  const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // ── Intent score ───────────────────────────────────────────
+  let intentScore = 0;
+  const hints = ['','tourist — just looking','loosely interested','exploring seriously','close to shipping','actively shipping'];
+
+  document.getElementById('score-row').addEventListener('click', e => {
+    const btn = e.target.closest('.score-btn');
+    if (!btn) return;
+    intentScore = parseInt(btn.dataset.v);
+    document.getElementById('intent_score').value = intentScore;
+    document.querySelectorAll('.score-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.v) <= intentScore);
+      b.classList.remove('error-ring');
+    });
+    document.getElementById('score-hint').textContent = hints[intentScore];
+  });
+
+  // ── Form submit ────────────────────────────────────────────
+  document.getElementById('member-form').addEventListener('submit', async e => {
+    e.preventDefault();
+
+    const btn = document.getElementById('submit-btn');
+    const errorBanner = document.getElementById('error-banner');
+    errorBanner.style.display = 'none';
+
+    // Required field validation
+    const requiredFields = [
+      'full_name','city','country','role',
+      'what_building','category_primary','chain_alignment',
+      'stage','funding_status','value_flow_position'
+    ];
+    let valid = true;
+
+    requiredFields.forEach(id => {
+      const el = document.getElementById(id);
+      const empty = !el.value.trim();
+      el.classList.toggle('error', empty);
+      if (empty) valid = false;
+    });
+
+    if (!intentScore) {
+      document.querySelectorAll('.score-btn').forEach(b => b.classList.add('error-ring'));
+      valid = false;
+    }
+
+    const consent = document.getElementById('pdpa_consent');
+    const consentError = document.getElementById('consent-error');
+    if (!consent.checked) {
+      consentError.style.display = 'block';
+      valid = false;
+    } else {
+      consentError.style.display = 'none';
+    }
+
+    if (!valid) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    // Build payload — only send fields that have values
+    const val = id => document.getElementById(id).value.trim() || null;
+
+    const payload = {
+      full_name:           val('full_name'),
+      project_name:        val('project_name'),
+      role:                val('role'),
+      city:                val('city'),
+      country:             val('country'),
+      twitter_or_x:        val('twitter_or_x'),
+      linkedin:            val('linkedin'),
+      what_building:       val('what_building'),
+      category_primary:    val('category_primary'),
+      category_secondary:  val('category_secondary') || null,
+      chain_alignment:     val('chain_alignment'),
+      why_solana:          val('why_solana'),
+      github_or_demo:      val('github_or_demo'),
+      stage:               val('stage'),
+      traction_signal:     val('traction_signal'),
+      funding_status:      val('funding_status'),
+      intent_score:        intentScore,
+      value_flow_position: val('value_flow_position'),
+      current_need:        val('current_need') || null,
+      pdpa_consent:        true,
+      consent_at:          new Date().toISOString(),
+    };
+
+    const { error } = await sb.from('members').insert([payload]);
+
+    if (error) {
+      console.error('[Superteam] Supabase error:', error);
+      errorBanner.textContent = 'Submission failed: ' + (error.message || 'Unknown error. Please try again.');
+      errorBanner.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Submit application';
+      return;
+    }
+
+    // Success
+    document.getElementById('member-form').style.display = 'none';
+    document.getElementById('success-screen').style.display = 'block';
+  });
+
+  // Clear error state on input
+  document.querySelectorAll('input, select, textarea').forEach(el => {
+    el.addEventListener('input', () => el.classList.remove('error'));
+    el.addEventListener('change', () => el.classList.remove('error'));
+  });
+</script>
+
+</body>
+</html>
